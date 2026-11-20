@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { absencesOn, balance, dayGaps, dayItems, dayMaps, favorites, isPinned, targetMs } from '../calc';
-import { S, U, addEntry, colorOf, ix, label, remove, setU, startTimer, stopTimer, toast } from '../store';
+import { POMO, S, U, addEntry, clearPomoDone, colorOf, ix, label, remove, setPlanned, setU, startTimer, stopTimer, toast } from '../store';
 import { HOUR, MIN, addDays, dayRange, dayStart, fmtClock, fmtDay, fmtDur, fmtTime, today, weekStart } from '../time';
 import type { Fav } from '../types';
 import { Dot, Tile, useSize } from '../ui';
@@ -13,9 +13,9 @@ export function Today() {
   const [, setTick] = useState(0);
   const running = ix().running;
   useEffect(() => {
-    const i = setInterval(() => setTick((t) => t + 1), running ? 1000 : 30_000);
+    const i = setInterval(() => setTick((t) => t + 1), running || U.pomoDone ? 1000 : 30_000);
     return () => clearInterval(i);
-  }, [!!running]);
+  }, [!!running || !!U.pomoDone]);
 
   const [drag, setDrag] = useState<{ fav: Fav; x: number; y: number; hot: string | null } | null>(null);
   const dragged = useRef(false);
@@ -93,7 +93,7 @@ export function Today() {
     setU({ sheet: g ? { kind: 'pick', preset: { start: g.a, end: g.b }, day } : { kind: 'pick', day } });
   };
 
-  const rl = running ? label(running) : null;
+  const rl = running ? label(running) : null, pd = U.pomoDone, elapsed = running ? Date.now() - running.start : 0;
   return (
     <div class="today">
       <div class="row head">
@@ -112,11 +112,34 @@ export function Today() {
       </div>
 
       {running && rl && (
-        <div class="card row runbar" onClick={() => setU({ sheet: { kind: 'entry', id: running.id } })}>
-          <Dot color={colorOf(running.projectId)} />
-          <span class="grow ell"><b>{rl.activity || rl.project}</b>{rl.activity && <span class="sub"> · {rl.project}</span>}</span>
-          <b class="tn">{fmtClock(Date.now() - running.start)}</b>
-          <button class="stop" onClick={(e) => { e.stopPropagation(); stopTimer(); toast('Timer gestoppt'); }} aria-label="Timer stoppen">■</button>
+        <div class="card runbar" onClick={() => setU({ sheet: { kind: 'entry', id: running.id } })}>
+          <div class="row">
+            <Dot color={colorOf(running.projectId)} />
+            <span class="grow ell"><b>{rl.activity || rl.project}</b>{rl.activity && <span class="sub"> · {rl.project}</span>}</span>
+            <b class="tn">{running.planned ? 'noch ' + fmtClock(Math.max(0, running.planned - elapsed)) : fmtClock(elapsed)}</b>
+            <button class="stop" onClick={(e) => { e.stopPropagation(); stopTimer(); toast('Timer gestoppt'); }} aria-label="Timer stoppen">■</button>
+          </div>
+          {running.planned && <div class="pbar"><i style={{ width: Math.min(100, (elapsed / running.planned) * 100) + '%' }} /></div>}
+          <div class="row pomo" onClick={(e) => e.stopPropagation()}>
+            <span class="sub">Pomodoro</span>
+            {POMO.map((m) => {
+              const on = running.planned === m * MIN;
+              return <button key={m} class={'chip' + (on ? ' on' : '')} disabled={!on && elapsed >= m * MIN} onClick={() => setPlanned(on ? null : m)}>{m} min</button>;
+            })}
+            {running.planned && <span class="sub">bis {fmtTime(running.start + running.planned)}</span>}
+          </div>
+        </div>
+      )}
+      {!running && pd && (
+        <div class="card runbar">
+          <div class="row">
+            <span class="grow ell"><b>Pomodoro fertig</b><span class="sub"> · {label(pd).activity || label(pd).project} · Pause seit {fmtClock(Date.now() - pd.at)}</span></span>
+            <button class="x" onClick={clearPomoDone} aria-label="Schließen">✕</button>
+          </div>
+          <div class="row pomo">
+            <span class="sub">Nächste Runde</span>
+            {POMO.map((m) => <button key={m} class="chip" onClick={() => { startTimer(pd, Date.now(), m * MIN); clearPomoDone(); toast(`▶ Pomodoro ${m} min: ${label(pd).activity || label(pd).project}`); }}>{m} min</button>)}
+          </div>
         </div>
       )}
 

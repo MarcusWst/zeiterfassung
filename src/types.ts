@@ -21,6 +21,8 @@ export interface Entry {
   end: number | null;
   note: string;
   tagIds: number[];
+  /** Pomodoro: geplante Dauer in ms; der Timer endet dann von selbst */
+  planned?: number;
 }
 export interface Profile {
   id: number;
@@ -43,6 +45,8 @@ export interface Settings {
   profileId: number;
   billableTagId: number | null;
   theme: 'system' | 'light' | 'dark';
+  /** Bildschirm während eines Pomodoro anlassen, damit das Signal sicher kommt */
+  keepAwake: boolean;
 }
 export interface Tables {
   projects: Project[];
@@ -56,4 +60,4 @@ export interface Tables {
 }
 export type Dump = Tables & { settings: Settings };
 export const TABLES = ['projects', 'activities', 'tags', 'entries', 'profiles', 'absences', 'targets', 'filters'] as const;
-export const DEFAULT_SETTINGS: Settings = { pinned: [], profileId: 1, billableTagId: null, theme: 'system' };
+export const DEFAULT_SETTINGS: Settings = { pinned: [], profileId: 1, billableTagId: null, theme: 'system', keepAwake: true };

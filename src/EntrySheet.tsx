@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { activityUse, dayItems, favorites, isPinned, projectsByUse } from './calc';
-import { S, U, addEntry, colorOf, defaultTags, ix, label, newId, put, remove, setU, startTimer, stopTimer, toast, type SheetSpec } from './store';
+import { POMO, S, U, addEntry, colorOf, defaultTags, ix, label, newId, put, remove, setSettings, setU, startTimer, stopTimer, toast, type SheetSpec } from './store';
 import { MIN, addDays, at, dayKey, fmtDay, fmtDur, fmtTime, today } from './time';
 import type { Entry, Fav } from './types';
 import { Chips, Dot, PALETTE, Seg, Sheet, Tile } from './ui';
@@ -143,7 +143,8 @@ function Form({ fav, existing, spec, onChangeFav }: { fav: Fav; existing?: Entry
   }, []);
 
   const running = !!existing && existing.end == null;
-  const [mode, setMode] = useState<'timer' | 'log'>(existing || preset || (spec.kind === 'pick' && spec.day && spec.day !== today()) ? 'log' : 'timer');
+  const [pomo, setPomo] = useState(POMO[0]);
+  const [mode, setMode] = useState<'timer' | 'pomo' | 'log'>(existing || preset || (spec.kind === 'pick' && spec.day && spec.day !== today()) ? 'log' : 'timer');
   const [day, setDay] = useState(init.day);
   const [s, setS] = useState(init.s);
   const [t, setT] = useState(init.t);
@@ -164,10 +165,10 @@ function Form({ fav, existing, spec, onChangeFav }: { fav: Fav; existing?: Entry
       if (running && start > Date.now()) return toast('Der Start liegt in der Zukunft.');
       put('entries', { ...existing, ...fav, start, end: running ? null : end, tagIds, note: note.trim() });
       toast('Gespeichert');
-    } else if (mode === 'timer') {
-      const e = startTimer(fav, Date.now() - back * MIN);
+    } else if (mode !== 'log') {
+      const e = startTimer(fav, Date.now() - back * MIN, mode === 'pomo' ? pomo * MIN : undefined);
       put('entries', { ...e, tagIds, note: note.trim() });
-      toast('▶ Timer läuft: ' + (l.activity || l.project));
+      toast((mode === 'pomo' ? `▶ Pomodoro ${pomo} min: ` : '▶ Timer läuft: ') + (l.activity || l.project));
       U.day = null;
       U.tab = 'today';
     } else {
@@ -194,15 +195,25 @@ function Form({ fav, existing, spec, onChangeFav }: { fav: Fav; existing?: Entry
         <span class="sub">ändern</span>
       </button>
 
-      {!existing && <Seg options={[{ id: 'timer', label: 'Timer' }, { id: 'log', label: 'Nachtragen' }]} value={mode} onChange={setMode} />}
+      {!existing && <Seg options={[{ id: 'timer', label: 'Timer' }, { id: 'pomo', label: 'Pomodoro' }, { id: 'log', label: 'Nachtragen' }]} value={mode} onChange={setMode} />}
 
-      {mode === 'timer' && !existing ? (
+      {mode !== 'log' && !existing ? (
         <div class="timerbox">
           <div class="sub">Start</div>
           <div class="bigtime tn">{fmtTime(Date.now() - back * MIN)}</div>
           <div class="chipbox center">
             {[0, 5, 10, 15, 30].map((m) => <button key={m} class={'chip' + (back === m ? ' on' : '')} onClick={() => setBack(m)}>{m ? `vor ${m} min` : 'jetzt'}</button>)}
           </div>
+          {mode === 'pomo' && (
+            <>
+              <div class="lbl">Dauer</div>
+              <div class="chipbox center">
+                {POMO.map((m) => <button key={m} class={'chip' + (pomo === m ? ' on' : '')} onClick={() => setPomo(m)}>{m} min</button>)}
+              </div>
+              <div class="sub" style={{ margin: '8px 0' }}>Endet von selbst um <b class="ink">{fmtTime(Date.now() - back * MIN + pomo * MIN)}</b> mit Ton und Vibration.</div>
+              <button class={'chip' + (S.settings.keepAwake ? ' on' : '')} onClick={() => setSettings({ keepAwake: !S.settings.keepAwake })}>{S.settings.keepAwake ? '✓ ' : ''}Bildschirm währenddessen anlassen</button>
+            </>
+          )}
         </div>
       ) : (
         <>
@@ -238,7 +249,7 @@ function Form({ fav, existing, spec, onChangeFav }: { fav: Fav; existing?: Entry
       <div class="row" style={{ marginTop: 12 }}>
         {existing && <button class="btn sec danger" onClick={del}>Löschen</button>}
         {running && <button class="btn sec" onClick={() => { stopTimer(); close(); toast('Timer gestoppt'); }}>■ Stoppen</button>}
-        <button class="btn grow" onClick={save}>{existing ? 'Speichern' : mode === 'timer' ? '▶ Timer starten' : `Eintragen · ${fmtDur(dur)}`}</button>
+        <button class="btn grow" onClick={save}>{existing ? 'Speichern' : mode === 'timer' ? '▶ Timer starten' : mode === 'pomo' ? `▶ Pomodoro starten · ${pomo} min` : `Eintragen · ${fmtDur(dur)}`}</button>
       </div>
     </div>
   );

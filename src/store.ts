@@ -142,10 +142,11 @@ export function stopTimer(when = Date.now()): Entry | null {
   put('entries', stopped);
   return stopped;
 }
-export function startTimer(f: Fav, when = Date.now()): Entry {
+export function startTimer(f: Fav, when = Date.now(), planned?: number): Entry {
   stopTimer(when);
-  const e: Entry = { id: newId('entries'), projectId: f.projectId, activityId: f.activityId, start: sec(when), end: null, note: '', tagIds: defaultTags(f.projectId, f.activityId) };
+  const e: Entry = { id: newId('entries'), projectId: f.projectId, activityId: f.activityId, start: sec(when), end: null, note: '', tagIds: defaultTags(f.projectId, f.activityId), ...(planned ? { planned } : {}) };
   put('entries', e);
+  if (planned) primeSignal();
   return e;
 }
 export function addEntry(f: Fav, start: number, end: number): Entry {
@@ -160,8 +161,15 @@ export type SheetSpec =
   | { kind: 'pick'; preset?: { start: number; end: number }; focus?: 'search' | 'all'; day?: string }
   | { kind: 'entry'; id: number }
   | { kind: 'day'; day: string };
-export const U: { tab: Tab; day: string | null; sheet: SheetSpec | null; toast: { msg: string; action?: { label: string; fn: () => void } } | null } = {
-  tab: 'today', day: null, sheet: null, toast: null,
+export interface PomoDone { projectId: number; activityId: number | null; planned: number; at: number }
+function storedPomoDone(): PomoDone | null {
+  try {
+    const p = JSON.parse(localStorage.getItem('pomoDone') || 'null');
+    return p && Date.now() - p.at < 2 * 3_600_000 ? p : null;
+  } catch { return null; }
+}
+export const U: { tab: Tab; day: string | null; sheet: SheetSpec | null; toast: { msg: string; action?: { label: string; fn: () => void } } | null; pomoDone: PomoDone | null } = {
+  tab: 'today', day: null, sheet: null, toast: null, pomoDone: storedPomoDone(),
 };
 export function setU(patch: Partial<typeof U>): void {
   Object.assign(U, patch);
@@ -173,4 +181,62 @@ export function toast(msg: string, action?: { label: string; fn: () => void }): 
   U.toast = { msg, action };
   toastTimer = setTimeout(() => { U.toast = null; bump(); }, action ? 6000 : 2600);
   bump();
+}
+
+// ---------- Pomodoro ----------
+/** Vorschläge in Minuten; der erste ist die Vorauswahl */
+export const POMO = [40, 20, 60];
+let audio: AudioContext | null = null;
+/** Muss bei einem Tipp aufgerufen werden: erst dann erlaubt der Browser Ton und fragt nach Benachrichtigungen */
+export function primeSignal(): void {
+  try { audio = audio || new AudioContext(); void audio.resume(); } catch { /* kein Ton verfügbar */ }
+  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
+}
+function signal(text: string): void {
+  navigator.vibrate?.([400, 150, 400, 150, 600]);
+  try {
+    const ctx = (audio = audio || new AudioContext());
+    void ctx.resume();
+    [0, 0.35, 0.7].forEach((t, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain(), s = ctx.currentTime + t;
+      o.frequency.value = i === 2 ? 1175 : 880;
+      o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.0001, s);
+      g.gain.exponentialRampToValueAtTime(0.4, s + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, s + 0.3);
+      o.start(s); o.stop(s + 0.32);
+    });
+  } catch { /* kein Ton verfügbar */ }
+  if ('Notification' in window && Notification.permission === 'granted' && document.visibilityState !== 'visible') {
+    const show = async () => {
+      const reg = await navigator.serviceWorker?.getRegistration();
+      if (reg) await reg.showNotification('Pomodoro fertig', { body: text, tag: 'pomodoro' });
+      else new Notification('Pomodoro fertig', { body: text });
+    };
+    show().catch(() => {});
+  }
+}
+/** Macht aus dem laufenden Timer einen Pomodoro (Minuten ab Start) oder wieder einen offenen Timer (null) */
+export function setPlanned(minutes: number | null): void {
+  const r = ix().running;
+  if (!r) return;
+  const e: Entry = { ...r };
+  if (minutes) e.planned = minutes * 60_000; else delete e.planned;
+  put('entries', e);
+  if (minutes) primeSignal();
+}
+/** Beendet einen abgelaufenen Pomodoro genau zur geplanten Zeit – auch wenn die App erst später wieder geöffnet wird */
+export function checkPomodoro(): void {
+  const r = ix().running;
+  if (!r || !r.planned || Date.now() < r.start + r.planned) return;
+  const at = r.start + r.planned;
+  put('entries', { ...r, end: at });
+  U.pomoDone = { projectId: r.projectId, activityId: r.activityId, planned: r.planned, at };
+  localStorage.setItem('pomoDone', JSON.stringify(U.pomoDone));
+  signal(`${label(r).full} · ${Math.round(r.planned / 60_000)} min`);
+  bump();
+}
+export function clearPomoDone(): void {
+  localStorage.removeItem('pomoDone');
+  setU({ pomoDone: null });
 }

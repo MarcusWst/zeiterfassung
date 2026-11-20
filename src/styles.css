@@ -229,3 +229,10 @@ svg.line .val { font-size: 10.5px; font-weight: 600; fill: var(--ink); }
 .wdgrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 .wdgrid label { text-align: center; }
 .wdgrid input { width: 100%; text-align: center; background: var(--s2); border: 1px solid var(--border); border-radius: 8px; padding: 7px 0; }
+
+/* ---------- Pomodoro ---------- */
+.pbar { height: 4px; border-radius: 4px; background: var(--s2); margin-top: 7px; overflow: hidden; }
+.pbar i { display: block; height: 100%; background: var(--accent); }
+.pomo { margin-top: 7px; gap: 6px; cursor: default; }
+.pomo .chip { padding: 4px 10px; font-size: 12px; }
+.chip:disabled { opacity: .35; }

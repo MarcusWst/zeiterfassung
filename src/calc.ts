@@ -12,7 +12,8 @@ export function memo<T>(key: string, fn: () => T): T {
   return cache.get(key) as T;
 }
 
-export const endOf = (e: Entry) => e.end ?? Math.max(Date.now(), e.start);
+/** Ende eines Eintrags; ein laufender Pomodoro zählt höchstens bis zu seiner geplanten Dauer */
+export const endOf = (e: Entry) => e.end ?? Math.max(e.start, e.planned ? Math.min(Date.now(), e.start + e.planned) : Date.now());
 export const durOf = (e: Entry) => endOf(e) - e.start;
 
 /** profileId 0 = alle Profile */

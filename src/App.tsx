@@ -1,6 +1,6 @@
 import { useEffect } from 'preact/hooks';
 import { EntrySheet } from './EntrySheet';
-import { S, U, setU, useStore, type Tab } from './store';
+import { S, U, checkPomodoro, ix, setU, useStore, type Tab } from './store';
 import { Toast } from './ui';
 import { DaySheet, History } from './views/History';
 import { More } from './views/More';
@@ -16,6 +16,23 @@ export function App() {
     const t = S.settings.theme;
     if (t === 'system') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
   }, [S.settings.theme]);
+  // Pomodoro: jede Sekunde und beim Zurückkehren in die App prüfen, ob die Zeit um ist
+  useEffect(() => {
+    const check = () => { if (S.ready) checkPomodoro(); };
+    const i = setInterval(check, 1000);
+    document.addEventListener('visibilitychange', check);
+    return () => { clearInterval(i); document.removeEventListener('visibilitychange', check); };
+  }, []);
+  // Bildschirm anlassen, solange ein Pomodoro läuft
+  const awake = S.ready && S.settings.keepAwake && !!ix().running?.planned;
+  useEffect(() => {
+    if (!awake || !('wakeLock' in navigator)) return;
+    let lock: WakeLockSentinel | null = null, off = false;
+    const get = () => { if (document.visibilityState === 'visible') navigator.wakeLock.request('screen').then((l) => { if (off) void l.release(); else lock = l; }).catch(() => {}); };
+    get();
+    document.addEventListener('visibilitychange', get);
+    return () => { off = true; document.removeEventListener('visibilitychange', get); void lock?.release(); };
+  }, [awake]);
   if (!S.ready) return <div class="loading">Lädt …</div>;
   const View = VIEWS[U.tab], sheet = U.sheet;
   return (
