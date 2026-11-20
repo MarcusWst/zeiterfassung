@@ -19,6 +19,20 @@ export function Today() {
 
   const [drag, setDrag] = useState<{ fav: Fav; x: number; y: number; hot: string | null } | null>(null);
   const dragged = useRef(false);
+  // Favoriten-Bereich: eingeklappt eine Reihe, aufgeklappt alle zwölf
+  const [open, setOpenState] = useState(localStorage.getItem('favsOpen') === '1');
+  const setOpen = (v: boolean) => { localStorage.setItem('favsOpen', v ? '1' : '0'); setOpenState(v); };
+  const onHeadDown = (ev: PointerEvent) => {
+    const y0 = ev.clientY;
+    const up = (e: PointerEvent) => {
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      const dy = e.clientY - y0;
+      setOpen(dy < -15 ? true : dy > 15 ? false : !open); // nach oben wischen öffnet, nach unten schließt, Tippen wechselt
+    };
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  };
   const tl = useRef<{ el: HTMLElement | null; from: number; to: number }>({ el: null, from: 7, to: 19 });
 
   if (!S.projects.length && !S.entries.length) return <Onboarding />;
@@ -145,13 +159,17 @@ export function Today() {
 
       <Timeline day={day} hot={drag?.hot || null} share={tl.current} />
 
-      <div class="row favhead"><b class="grow">Favoriten</b><span class="sub">Tippen = Timer · {matchMedia('(pointer:coarse)').matches ? 'Halten und ziehen' : 'Ziehen'} = Eintragen</span></div>
+      <div class="favhead" onPointerDown={onHeadDown} role="button" aria-label={open ? 'Favoriten einklappen' : 'Alle Favoriten zeigen'}>
+        <div class="handle" />
+        <div class="row"><b class="grow">Favoriten</b><span class="sub">{open ? 'weniger ▾' : 'alle zeigen ▴'}</span></div>
+      </div>
       <div class="favs c3">
-        {favorites().map((f) => (
+        {favorites().slice(0, open ? 12 : 3).map((f) => (
           <Tile key={f.projectId + '|' + f.activityId} fav={f} pinned={isPinned(f)} onPointerDown={(e: PointerEvent) => onTileDown(e, f)} onClick={() => onTileClick(f)} onContextMenu={(e: Event) => e.preventDefault()} />
         ))}
         {!favorites().length && <div class="sub pad" style={{ gridColumn: '1/-1' }}>Favoriten erscheinen hier, sobald du Einträge hast.</div>}
       </div>
+      {open && <div class="sub" style={{ margin: '6px 2px 0' }}>Tippen = Timer · {matchMedia('(pointer:coarse)').matches ? 'Halten und ziehen' : 'Ziehen'} = Eintragen</div>}
       <div class="find">
         <button class="inp" onClick={() => setU({ sheet: { kind: 'pick', focus: 'search', day } })}><span class="mu">⌕</span><span class="mu">Suchen</span></button>
         <button class="all" onClick={() => setU({ sheet: { kind: 'pick', focus: 'all', day } })}>Alle Projekte</button>

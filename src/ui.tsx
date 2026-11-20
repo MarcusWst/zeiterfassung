@@ -3,10 +3,11 @@ import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { U, colorOf, label, setU } from './store';
 import type { Fav } from './types';
 
-export function Sheet({ onClose, title, children }: { onClose: () => void; title?: string; children: ComponentChildren }) {
+/** tall: Blatt füllt den Bildschirm, damit Suchfeld und Treffer oben stehen und über der Tastatur sichtbar bleiben */
+export function Sheet({ onClose, title, tall, children }: { onClose: () => void; title?: string; tall?: boolean; children: ComponentChildren }) {
   return (
     <div class="overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div class="sheet">
+      <div class={'sheet' + (tall ? ' tall' : '')}>
         <div class="handle" />
         {title && (
           <div class="row sheet-h">

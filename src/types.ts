@@ -60,4 +60,4 @@ export interface Tables {
 }
 export type Dump = Tables & { settings: Settings };
 export const TABLES = ['projects', 'activities', 'tags', 'entries', 'profiles', 'absences', 'targets', 'filters'] as const;
-export const DEFAULT_SETTINGS: Settings = { pinned: [], profileId: 1, billableTagId: null, theme: 'system', keepAwake: true };
+export const DEFAULT_SETTINGS: Settings = { pinned: [], profileId: 1, billableTagId: null, theme: 'dark', keepAwake: true };

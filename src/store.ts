@@ -38,6 +38,13 @@ export async function load(): Promise<void> {
   TABLES.forEach((t, i) => { (S as any)[t] = rows[i]; });
   const meta = await db.table('meta').get('settings');
   S.settings = { ...DEFAULT_SETTINGS, ...(meta?.value || {}) };
+  if (!localStorage.getItem('darkDefault')) {
+    localStorage.setItem('darkDefault', '1');
+    if (S.settings.theme === 'system') {
+      S.settings.theme = 'dark';
+      db.table('meta').put({ key: 'settings', value: S.settings }).catch(fail);
+    }
+  }
   S.ready = true;
   bump();
 }

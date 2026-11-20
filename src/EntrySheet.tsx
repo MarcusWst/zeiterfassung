@@ -15,7 +15,7 @@ export function EntrySheet({ spec }: { spec: Extract<SheetSpec, { kind: 'pick' |
 
   if (picking || !fav) {
     return (
-      <Sheet onClose={fav ? () => setPicking(false) : close} title={spec.kind === 'pick' && spec.preset ? `${fmtTime(spec.preset.start)} – ${fmtTime(spec.preset.end)} · ${fmtDur(spec.preset.end - spec.preset.start)}` : 'Projekt wählen'}>
+      <Sheet tall onClose={fav ? () => setPicking(false) : close} title={spec.kind === 'pick' && spec.preset ? `${fmtTime(spec.preset.start)} – ${fmtTime(spec.preset.end)} · ${fmtDur(spec.preset.end - spec.preset.start)}` : 'Projekt wählen'}>
         <Pick focus={spec.kind === 'pick' ? spec.focus : undefined} onPick={(f) => { setFav(f); setPicking(false); }} />
       </Sheet>
     );

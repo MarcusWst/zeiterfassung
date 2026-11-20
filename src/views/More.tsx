@@ -374,7 +374,7 @@ function Data() {
       </div>
       <div class="card">
         <h3>Darstellung</h3>
-        <Seg options={[{ id: 'system', label: 'Wie das Handy' }, { id: 'light', label: 'Hell' }, { id: 'dark', label: 'Dunkel' }]} value={S.settings.theme} onChange={(theme) => setSettings({ theme })} />
+        <Seg options={[{ id: 'dark', label: 'Dunkel' }, { id: 'light', label: 'Hell' }, { id: 'system', label: 'Wie das Handy' }]} value={S.settings.theme} onChange={(theme) => setSettings({ theme })} />
       </div>
       <div class="card">
         <h3>Speicher</h3>
